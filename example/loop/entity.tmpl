@@ -1,0 +1,6 @@
+data {{capitalize(entity)}} = {{capitalize(entity)}}
+    { {{entity}}{{fieldName("Id", fields)}} :: {{capitalize(entity)}}Id
+{{for (field, type) in fields}}
+    , {{entity}}{{fieldName(capitalize(field), fields)}} :: !{{type}}
+{{end for}}
+    }

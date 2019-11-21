@@ -1,0 +1,51 @@
+package pkg
+
+import (
+	"time"
+	"github.com/applike/gosoline/pkg/db-repo"
+	"github.com/applike/gosoline/pkg/mdl"
+)
+
+var {{capitalize(entity)}}Metadata = db_repo.Metadata{
+	ModelId: mdl.ModelId{
+		Name: "{{snakeCase(entity)}}",
+	},
+	TableName:  "{{snakeCase(pluralize(entity))}}",
+	PrimaryKey: "{{snakeCase(pluralize(entity))}}.id",
+	Mappings: db_repo.FieldMappings{
+		"id": db_repo.NewFieldMapping("{{snakeCase(pluralize(entity))}}.id"),
+		{{for (name, _, isForeignKey) in fields}}
+    		{{if isForeignKey}}
+                "{{name}}.id": db_repo.NewFieldMapping("{{snakeCase(pluralize(entity))}}.{{snakeCase(name)}}_id"),
+                "{{name}}.createdAt": db_repo.NewFieldMapping("{{snakeCase(pluralize(name))}}.created_at").
+                    WithJoin("JOIN {{snakeCase(pluralize(name))}} ON {{snakeCase(pluralize(name))}}.id = {{snakeCase(pluralize(entity))}}.{{snakeCase(name)}}_id"),
+                "{{name}}.updatedAt": db_repo.NewFieldMapping("{{snakeCase(pluralize(name))}}.updated_at").
+                    WithJoin("JOIN {{snakeCase(pluralize(name))}} ON {{snakeCase(pluralize(name))}}.id = {{snakeCase(pluralize(entity))}}.{{snakeCase(name)}}_id"),
+    		{{else}}
+        		"{{name}}": db_repo.NewFieldMapping("{{snakeCase(pluralize(entity))}}.{{snakeCase(name)}}"),
+    		{{end if}}
+		{{end for}}
+		"createdAt": db_repo.NewFieldMapping("{{snakeCase(pluralize(entity))}}.created_at"),
+		"updatedAt": db_repo.NewFieldMapping("{{snakeCase(pluralize(entity))}}.updated_at"),
+	},
+}
+
+type {{capitalize(entity)}} struct {
+	db_repo.Model
+	{{for (name, type, isForeignKey) in fields}}
+        {{if isForeignKey}}
+            {{capitalize(name)}} *{{type}} `gorm:"foreignkey:id;association_foreignkey:{{capitalize(name)}}Id;"`
+            {{capitalize(name)}}Id *uint
+        {{else}}
+            {{capitalize(name)}} *{{type}}
+        {{end if}}
+    {{ end for }}
+}
+
+func {{capitalize(entity)}}WithId(id *uint) *{{capitalize(entity)}} {
+	return &{{capitalize(entity)}}{
+		Model: db_repo.Model{
+			Id: id,
+		},
+	}
+}

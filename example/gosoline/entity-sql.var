@@ -1,0 +1,2 @@
+entity: String
+fields: [(String, String, Bool)]

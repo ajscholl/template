@@ -16,14 +16,30 @@ library
   exposed-modules:
     Text.Template.Main
   other-modules:
-  build-depends:       base >=4.12 && < 5
+    Text.Template.Interpreter
+    Text.Template.Lexer
+    Text.Template.Parser
+  build-tools:         alex, happy
+  build-depends:
+    base >=4.12 && <5,
+    bytestring,
+    mtl,
+    transformers,
+    array,
+    containers,
+    hslua,
+    directory,
+    filepath,
+    haskeline
   hs-source-dirs:      src/lib
   ghc-options:         -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns
   default-language:    Haskell2010
 
 executable template-bin
   main-is:             Main.hs
-  build-depends:       base >=4.12 && < 5, template-bin
+  build-depends:
+    base >=4.12 && <5,
+    template-bin
   hs-source-dirs:      src/bin
   ghc-options:         -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns
   default-language:    Haskell2010

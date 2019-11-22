@@ -3,5 +3,47 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: alex-3.2.5@sha256:af0c4aac67849d8b35e8c16063517642a5c6b809d09fdb040ed9369f91cb26fb,4054
+    pantry-tree:
+      size: 5732
+      sha256: fdfac077ffd006b5bb8102edb3187f2d2587d9cde1d94cd9852b5ee077d05add
+  original:
+    hackage: alex-3.2.5@sha256:af0c4aac67849d8b35e8c16063517642a5c6b809d09fdb040ed9369f91cb26fb,4054
+- completed:
+    hackage: happy-1.19.12@sha256:acc67bfbf3af87892766781dd064c9447181ea81269a7a1e5fc9ace4a8fa4768,5691
+    pantry-tree:
+      size: 8693
+      sha256: 91502601a560862a5b90d776c0bd58bc2779ba5b7945c984817eaa3b9ca64564
+  original:
+    hackage: happy-1.19.12@sha256:acc67bfbf3af87892766781dd064c9447181ea81269a7a1e5fc9ace4a8fa4768,5691
+- completed:
+    hackage: hslua-1.0.3.2@sha256:8db3f80f52e8382c3ec6801742a13649cc2bf82cf55b6ac288a47512a6cc3b33,9685
+    pantry-tree:
+      size: 6706
+      sha256: 3493a73e9d9a81402108d36e5b87fc688b7e0da0f29fce8f9a16d613b8d8e060
+  original:
+    hackage: hslua-1.0.3.2@sha256:8db3f80f52e8382c3ec6801742a13649cc2bf82cf55b6ac288a47512a6cc3b33,9685
+- completed:
+    hackage: exceptions-0.10.3@sha256:6e8e66f3acf2ea59f9e100c55a885591c1981789ac2222022ff523c30990efb8,2251
+    pantry-tree:
+      size: 907
+      sha256: 555e4e7082702988b868ca8158d31b248f58c77d7bce4f6fb0fd4e8a92dbad72
+  original:
+    hackage: exceptions-0.10.3@sha256:6e8e66f3acf2ea59f9e100c55a885591c1981789ac2222022ff523c30990efb8,2251
+- completed:
+    hackage: fail-4.9.0.0@sha256:35d1ee29364447c1b7d616bb1ee31f162b73e85fea91d7ca6441cf901398f572,1051
+    pantry-tree:
+      size: 210
+      sha256: e4daa79eb6a4442ec85c86dfeb0eb4bf8624f8dcc5291a2216165120ecb77c13
+  original:
+    hackage: fail-4.9.0.0@sha256:35d1ee29364447c1b7d616bb1ee31f162b73e85fea91d7ca6441cf901398f572,1051
+- completed:
+    hackage: transformers-compat-0.6.5@sha256:50b00c57bf3fc379ec2477bfc261a2aebc983084488478adb29854f193af4696,5490
+    pantry-tree:
+      size: 1773
+      sha256: 3a15141e82214faba9ddcabaa63526273d4c8b7b1d9d6cbc643334bfe41fb2f8
+  original:
+    hackage: transformers-compat-0.6.5@sha256:50b00c57bf3fc379ec2477bfc261a2aebc983084488478adb29854f193af4696,5490
 snapshots: []

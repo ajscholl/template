@@ -15,7 +15,7 @@ function fieldName(field, fields)
     end
 
     local result = capitalize(field)
-    for i = #field + 1, longest, 1 do
+    for i = #field + 1, longest do
         result = result .. " "
     end
 

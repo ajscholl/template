@@ -1,0 +1,12 @@
+create table {{pluralize(entity)}}
+(
+  id int unsigned auto_increment,
+  {{for (field, type, isNull) in fields}}
+  {{snakeCase(field)}} {{type}} {{if isNull}}null{{else}}not null{{end if}},
+  {{end for}}
+  created_at timestamp not null,
+  updated_at timestamp not null,
+  constraint {{pluralize(entity)}}_pk
+    primary key (id)
+);
+

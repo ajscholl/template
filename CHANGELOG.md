@@ -1,4 +1,4 @@
-# Revision history for template-bin
+# Revision history for templates-to-go
 
 ## 0.1.0.0 -- YYYY-mm-dd
 

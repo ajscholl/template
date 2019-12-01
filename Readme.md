@@ -1,4 +1,4 @@
-# template
+# templates-to-go
 
 This tool allows for easy bootstrapping of common code patterns by filling out templates combined with lua scripting.
 

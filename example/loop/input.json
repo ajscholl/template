@@ -1,0 +1,7 @@
+{
+    "entity": "Client",
+    "fields": [
+        { "name": "packageId", "type": "String" },
+        { "name": "name", "type": "String" }
+    ]
+}

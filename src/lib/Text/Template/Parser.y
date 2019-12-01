@@ -1,6 +1,15 @@
 {
 {-# LANGUAGE OverloadedStrings #-}
-module Text.Template.Parser (parseTemplate, parsePatternDecls, Stmt(..), Expr(..), Pattern(..), PatternDecl(..), PatternType(..)) where
+module Text.Template.Parser
+    ( parseTemplate
+    , parsePatternDecls
+    , Stmt(..)
+    , Expr(..)
+    , Pattern(..)
+    , PatternDecl(..)
+    , PatternType(..)
+    , MapPattern(..)
+    ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -18,7 +27,7 @@ import Text.Template.Lexer
 %tokentype { Token SrcSpan }
 %error { parseError }
 %monad { Either String }
-%expect 7
+%expect 9
 
 %token
     id          { TId _ $$ }
@@ -65,7 +74,14 @@ PatternTypeS :: { PatternType }
 PatternType :: { PatternType }
             : '[' PatternTypeS ']'                                  { ListType $2 }
             | '(' List1SepBy(PatternTypeS, Comma) ')'               { TupleType $2 }
+            | '(' List1SepBy(MapPatternS, Comma) ')'                { MapType $2 }
             | id                                                    { namedType $1 }
+
+MapPattern :: { MapPattern }
+           : TokenR(id) ':' PatternTypeS                            { MapPattern $1 $3 }
+
+MapPatternS :: { MapPattern }
+            : Spaces MapPattern Spaces                              { $2 }
 
 Stmt :: { Stmt }
        : PrintStmt                                                  { $1 }
@@ -214,10 +230,13 @@ data PatternDecl = PatternDecl ByteString PatternType deriving Show
 
 data PatternType = ListType PatternType
                  | TupleType [PatternType]
+                 | MapType [MapPattern]
                  | StringType
                  | NumberType
                  | BoolType
                  deriving Show
+
+data MapPattern = MapPattern !ByteString PatternType deriving Show
 
 -----------------
 -- * Entry points

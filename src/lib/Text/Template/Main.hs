@@ -81,6 +81,7 @@ getInputWithType path typ = case typ of
                 getInputWithType path typ
             Just count -> ListValue <$> mapM (\ i -> getInputWithType (path ++ [show i]) t) [0 :: Int .. count - 1]
     TupleType xs -> ListValue <$> zipWithM (\ i -> getInputWithType (path ++ [show i])) [0 :: Int ..] xs
+    MapType xs -> MapValue <$> mapM (\ (MapPattern k v) -> (,) (StringValue $ BL.toStrict k) <$> getInputWithType (path ++ [string k]) v) xs
 
 pathString :: [String] -> String
 pathString = intercalate "."
@@ -95,3 +96,7 @@ showType t = case t of
     BoolType   -> "Bool"
     ListType e -> printf "[%s]" $ showType e
     TupleType xs -> printf "(%s)" $ intercalate ", " $ map showType xs
+    MapType xs -> printf "(%s)" $ intercalate ", " $ map showMapPattern xs
+
+showMapPattern :: MapPattern -> String
+showMapPattern (MapPattern k v) = string k <> ": " <> showType v

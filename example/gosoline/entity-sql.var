@@ -1,2 +1,2 @@
 entity: String
-fields: [(String, String, Bool)]
+fields: [(name: String, type: String, isNull: Bool)]

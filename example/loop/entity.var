@@ -1,2 +1,2 @@
 entity: String
-fields: [(String, String)]
+fields: [(name: String, type: String)]

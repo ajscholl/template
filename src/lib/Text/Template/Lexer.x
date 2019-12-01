@@ -89,8 +89,8 @@ tokens :-
 ----------------------------------------------------------------------------
 
 -- | Run the lexer on the given input string.
-lexer :: ByteString -> Either String [Token SrcSpan]
-lexer bs = go (alexStartPos, '\n', bs, 0)
+lexer :: FilePath -> ByteString -> Either String [Token SrcSpan]
+lexer fp bs = go (alexStartPos, '\n', bs, 0)
     where
         go :: AlexInput -> Either String [Token SrcSpan]
         go input@(pos, _, str, n) = case alexScan input 0 of
@@ -100,14 +100,14 @@ lexer bs = go (alexStartPos, '\n', bs, 0)
             AlexToken input'@(pos', _, _, n') _ token -> do
                 xs <- go input'
                 let len = n' - n
-                pure $ token (SrcSpan (mkSrcPos pos) (mkSrcPos pos')) (BL.take len str) : xs
+                pure $ token (SrcSpan fp (mkSrcPos pos) (mkSrcPos pos')) (BL.take len str) : xs
 
 ---------------
 -- * Data types
 ---------------
 
 data SrcPos = SrcPos { posLine :: !Int, posColumn :: !Int } deriving Show
-data SrcSpan = SrcSpan { spanStart :: !SrcPos, spanEnd :: !SrcPos } deriving Show
+data SrcSpan = SrcSpan { spanFile :: !FilePath, spanStart :: !SrcPos, spanEnd :: !SrcPos } deriving Show
 
 mkSrcPos :: AlexPosn -> SrcPos
 mkSrcPos (AlexPn _ l c) = SrcPos l c
@@ -116,34 +116,34 @@ showSrcPos :: SrcPos -> ShowS
 showSrcPos (SrcPos l c) s = shows l $ ':' : shows c s
 
 showSrcSpan :: SrcSpan -> String
-showSrcSpan (SrcSpan start end) = showSrcPos start $ ' ' : '-' : ' ' : showSrcPos end ""
+showSrcSpan (SrcSpan fp start end) = fp ++ (':' : showSrcPos start (' ' : '-' : ' ' : showSrcPos end ""))
 
 simpleToken :: (a -> b) -> a -> c -> b
 simpleToken t p _ = t p
 
 -- | Token type passed on to the parser.
-data Token l = TId !l !ByteString     -- ^ An identifier for a variable
-             | TChar !l !ByteString   -- ^ An unrecognized character
-             | TSpaces !l !ByteString -- ^ Space characters
-             | TLParen !l             -- ^ '('
-             | TRParen !l             -- ^ ')'
-             | TColon !l              -- ^ ':'
-             | TComma !l              -- ^ ','
-             | TEqual !l              -- ^ '='
-             | TDot !l                -- ^ '.'
-             | TLBrace2 !l            -- ^ '{{'
-             | TRBrace2 !l            -- ^ '}}'
-             | TLBracket !l           -- ^ '['
-             | TRBracket !l           -- ^ ']'
-             | TWild !l               -- ^ '_'
-             | TFor !l                -- ^ "{{ for"
-             | TIn !l                 -- ^ "in"
-             | TIf !l                 -- ^ "{{ if"
-             | TElse !l               -- ^ "{{ else }}"
-             | TElseIf !l             -- ^ "{{ else if"
-             | TEndIf !l              -- ^ "{{ end if }}"
-             | TEndFor !l             -- ^ "{{ end for }}"
-             | TNewline !l            -- ^ "\n"
+data Token l = TId { tokenLocation :: !l, tokenText :: !ByteString }     -- ^ An identifier for a variable
+             | TChar { tokenLocation :: !l, tokenText :: !ByteString }   -- ^ An unrecognized character
+             | TSpaces { tokenLocation :: !l, tokenText :: !ByteString } -- ^ Space characters
+             | TLParen { tokenLocation :: !l }                           -- ^ '('
+             | TRParen { tokenLocation :: !l }                           -- ^ ')'
+             | TColon { tokenLocation :: !l }                            -- ^ ':'
+             | TComma { tokenLocation :: !l }                            -- ^ ','
+             | TEqual { tokenLocation :: !l }                            -- ^ '='
+             | TDot { tokenLocation :: !l }                              -- ^ '.'
+             | TLBrace2 { tokenLocation :: !l }                          -- ^ '{{'
+             | TRBrace2 { tokenLocation :: !l }                          -- ^ '}}'
+             | TLBracket { tokenLocation :: !l }                         -- ^ '['
+             | TRBracket { tokenLocation :: !l }                         -- ^ ']'
+             | TWild { tokenLocation :: !l }                             -- ^ '_'
+             | TFor { tokenLocation :: !l }                              -- ^ "{{ for"
+             | TIn { tokenLocation :: !l }                               -- ^ "in"
+             | TIf { tokenLocation :: !l }                               -- ^ "{{ if"
+             | TElse { tokenLocation :: !l }                             -- ^ "{{ else }}"
+             | TElseIf { tokenLocation :: !l }                           -- ^ "{{ else if"
+             | TEndIf { tokenLocation :: !l }                            -- ^ "{{ end if }}"
+             | TEndFor { tokenLocation :: !l }                           -- ^ "{{ end for }}"
+             | TNewline { tokenLocation :: !l }                          -- ^ "\n"
              deriving Show
 
 showTokens :: [Token t] -> String

@@ -22,10 +22,13 @@ libMain = do
 
 execMain :: Flags -> IO ()
 execMain args = do
-    bs  <- BL.readFile $ inputFile args
-    lua <- BS.readFile $ replaceExtension (inputFile args) "lua"
-    var <- BL.readFile $ replaceExtension (inputFile args) "var"
-    case (,) <$> parseTemplate bs <*> parsePatternDecls var of
+    let tmplFile = inputFile args
+        luaFile  = replaceExtension (inputFile args) "lua"
+        varFile  = replaceExtension (inputFile args) "var"
+    bs  <- BL.readFile tmplFile
+    lua <- BS.readFile luaFile
+    var <- BL.readFile varFile
+    case (,) <$> parseTemplate tmplFile bs <*> parsePatternDecls varFile var of
         Left err -> reportError err
         Right (xs, pat) -> do
             vars <- case inputValues args of

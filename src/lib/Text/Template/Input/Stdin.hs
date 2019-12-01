@@ -33,7 +33,7 @@ getInputs decls = do
 
 getInput :: [String] -> PatternDecl -> InputT IO (String, Value)
 getInput path (PatternDecl name typ) = do
-    value <- getInputWithType (path ++ [string name]) typ
+    value <- getInputWithType (path <> [string name]) typ
     pure (string name, value)
 
 getInputWithType :: [String] -> PatternType -> InputT IO Value
@@ -66,9 +66,9 @@ getInputWithType path typ = case typ of
             Nothing     -> do
                 outputStrLn "Invalid value, please enter a number"
                 getInputWithType path typ
-            Just count -> ListValue <$> mapM (\ i -> getInputWithType (path ++ [show i]) t) [0 :: Int .. count - 1]
-    TupleType xs -> ListValue <$> zipWithM (\ i -> getInputWithType (path ++ [show i])) [0 :: Int ..] xs
-    MapType xs -> MapValue <$> mapM (\ (MapPattern k v) -> (,) (StringValue $ BL.toStrict k) <$> getInputWithType (path ++ [string k]) v) xs
+            Just count -> ListValue <$> mapM (\ i -> getInputWithType (path <> [show i]) t) [0 :: Int .. count - 1]
+    TupleType xs -> ListValue <$> zipWithM (\ i -> getInputWithType (path <> [show i])) [0 :: Int ..] xs
+    MapType xs -> MapValue <$> mapM (\ (MapPattern k v) -> (,) (StringValue $ BL.toStrict k) <$> getInputWithType (path <> [string k]) v) xs
 
 pathString :: [String] -> String
 pathString = intercalate "."

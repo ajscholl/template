@@ -207,7 +207,7 @@ namedType name     = error $ show name
 
 parseError :: [Token SrcSpan] -> Either String a
 parseError []    = Left $ "Parse error at end of input"
-parseError xs    = Left $ "Parse error on " <> showTokens xs <> show xs
+parseError (x:_) = Left $ "Parse error on " <> showTokens [x] <> " (" <> showSrcSpan (tokenLocation x) <> ")"
 
 ----------------------
 -- * Module definition
@@ -243,10 +243,10 @@ data MapPattern = MapPattern !ByteString PatternType deriving Show
 -----------------
 
 -- | Parse a source file into a list of statements
-parseTemplate :: ByteString -> Either String [Stmt]
-parseTemplate t = lexer t >>= parseTemplateP
+parseTemplate :: FilePath -> ByteString -> Either String [Stmt]
+parseTemplate fp t = lexer fp t >>= parseTemplateP
 
-parsePatternDecls :: ByteString -> Either String [PatternDecl]
-parsePatternDecls t = lexer t >>= parsePatternDeclsP
+parsePatternDecls :: FilePath -> ByteString -> Either String [PatternDecl]
+parsePatternDecls fp t = lexer fp t >>= parsePatternDeclsP
 
 }

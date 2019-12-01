@@ -35,7 +35,10 @@ execMain args = do
                     case jsonToInputs json pat of
                         Left err   -> reportError err
                         Right vars -> pure vars
-            result <- interpret xs lua vars
+            resultOrErr <- interpret xs lua vars
+            result <- case resultOrErr of
+                Left err -> reportError $ fromInterpreterException err
+                Right rs -> pure rs
             case outputFile args of
                 Nothing -> BLC.putStrLn result
                 Just fp -> do

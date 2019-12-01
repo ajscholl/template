@@ -13,7 +13,7 @@ import Data.Maybe
 import Data.String
 import Data.Typeable
 
-import Foreign.Lua hiding (Exception)
+import Foreign.Lua hiding (Exception, try)
 
 import Text.Template.Parser
 
@@ -26,12 +26,15 @@ data Value = StringValue !ByteString
            | MapValue ![(Value, Value)]
            deriving Show
 
-newtype InterpreterException = InterpreterException String deriving (Show, Typeable)
+newtype InterpreterException = InterpreterException { fromInterpreterException :: String } deriving (Show, Typeable)
 
 instance Exception InterpreterException
 
-interpret :: [Stmt] -> ByteString -> Variables -> IO BL.ByteString
-interpret stmts luaCode vars = run $ do
+interpreterError :: MonadIO m => String -> m a
+interpreterError = liftIO . throwIO . InterpreterException
+
+interpret :: [Stmt] -> ByteString -> Variables -> IO (Either InterpreterException BL.ByteString)
+interpret stmts luaCode vars = try $ run $ do
     -- load lua libraries
     forM_ [("base", openbase), ("math", openmath), ("string", openstring), ("table", opentable)] $ \ (name, act) -> do
         act
@@ -41,8 +44,9 @@ interpret stmts luaCode vars = run $ do
     s <- dostring luaCode
     case s of
         OK        -> pure ()
-        ErrSyntax -> liftIO $ throwIO $ InterpreterException "Failed to parse lua code: Syntax error"
-        _         -> liftIO $ throwIO $ InterpreterException $ "Failed to load lua code: " <> show s
+        ErrSyntax -> interpreterError "Failed to parse lua code: Syntax error"
+        ErrRun    -> catchException throwTopMessage $ \ e -> interpreterError $ "Failed to load lua code: " <> exceptionMessage e
+        _         -> interpreterError $ "Failed to load lua code: " <> show s
     setVariables vars
     execWriterT $ mapM_ (runStmt vars) stmts
 
@@ -51,7 +55,7 @@ checkStatus = do
     s <- status
     case s of
         OK -> pure ()
-        _  -> liftIO $ throwIO $ InterpreterException $ "Lua has invalid status: " <> show s
+        _  -> interpreterError $ "Lua has invalid status: " <> show s
 
 runStmt :: Variables -> Stmt -> WriterT BL.ByteString Lua ()
 runStmt vars stmt = case stmt of
@@ -66,7 +70,7 @@ runStmt vars stmt = case stmt of
             BoolValue False -> case elseIfBlocks of
                 [] -> mapM_ (runStmt vars) elseBlock
                 ((e, b):xs) -> runStmt vars $ IfStmt e b xs elseBlock
-            _ -> liftIO $ throwIO $ InterpreterException "Received non-boolean value in if-condition"
+            _ -> interpreterError "Received non-boolean value in if-condition"
     ForStmt (pattern, Expr expr) body -> do
         value <- lift $ evaluateExpr expr
         case value of
@@ -78,7 +82,7 @@ runStmt vars stmt = case stmt of
                 newVars <- lift $ matchPatternWithKey pattern k v vars
                 lift $ setVariables newVars
                 mapM_ (runStmt newVars) body
-            _ -> liftIO $ throwIO $ InterpreterException "Received non-list value in for-loop"
+            _ -> interpreterError "Received non-list value in for-loop"
         lift $ setVariables vars
 
 resultGlobal :: IsString a => a
@@ -89,8 +93,9 @@ evaluateExpr expr = do
     s <- dostring $ BL.toStrict $ resultGlobal <> fromString " = " <> expr
     case s of
         OK        -> pure ()
-        ErrSyntax -> liftIO $ throwIO $ InterpreterException $ "Failed to parse lua expression: Syntax error in " <> show expr
-        _         -> liftIO $ throwIO $ InterpreterException $ "Failed to evaluate lua expression: " <> show s <> " in " <> show expr
+        ErrSyntax -> interpreterError $ "Failed to parse lua expression: Syntax error in " <> show expr
+        ErrRun    -> catchException throwTopMessage $ \ e -> interpreterError $ "Failed to evaluate lua expression: " <> exceptionMessage e <> " in " <> BLC.unpack expr
+        _         -> interpreterError $ "Failed to evaluate lua expression: " <> show s <> " in " <> show expr
     getglobal resultGlobal
     value <- parseValue (-1)
     pop 1
@@ -101,16 +106,16 @@ parseValue :: StackIndex -> Lua Value
 parseValue idx = do
     typ <- ltype idx
     case typ of
-        TypeNone          -> liftIO $ throwIO $ InterpreterException "Can not convert none to value"
-        TypeNil           -> liftIO $ throwIO $ InterpreterException "Can not convert nil to value"
+        TypeNone          -> interpreterError "Can not convert none to value"
+        TypeNil           -> interpreterError "Can not convert nil to value"
         TypeBoolean       -> BoolValue <$> toboolean idx
-        TypeLightUserdata -> liftIO $ throwIO $ InterpreterException "Can not convert light userdata to value"
+        TypeLightUserdata -> interpreterError "Can not convert light userdata to value"
         TypeNumber        -> NumberValue . maybe 0 (\ (Number d) -> d) <$> tonumber idx
         TypeString        -> StringValue . fromMaybe mempty <$> tostring idx
         TypeTable         -> parseTable idx
-        TypeFunction      -> liftIO $ throwIO $ InterpreterException "Can not convert function to value"
-        TypeUserdata      -> liftIO $ throwIO $ InterpreterException "Can not convert userdata to value"
-        TypeThread        -> liftIO $ throwIO $ InterpreterException "Can not convert thread to value"
+        TypeFunction      -> interpreterError "Can not convert function to value"
+        TypeUserdata      -> interpreterError "Can not convert userdata to value"
+        TypeThread        -> interpreterError "Can not convert thread to value"
 
 -- convert a table at the given stack
 parseTable :: StackIndex -> Lua Value
@@ -197,8 +202,8 @@ matchPattern pat values vars@(Variables variables) = case pat of
         _   -> case values of
             ListValue xs -> if length xs >= length pats
                 then foldl' (>>=) (pure vars) $ zipWith matchPattern pats xs
-                else liftIO $ throwIO $ InterpreterException "Failed pattern match"
-            _ -> liftIO $ throwIO $ InterpreterException "Can only match tuples to lists"
+                else interpreterError "Failed pattern match"
+            _ -> interpreterError "Can only match tuples to lists"
 
 matchPatternWithKey :: Pattern -> Value -> Value -> Variables -> Lua Variables
 matchPatternWithKey pat key values = case values of

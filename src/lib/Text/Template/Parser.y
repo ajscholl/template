@@ -15,34 +15,34 @@ import Text.Template.Lexer
 
 %name parseTemplateP
 %partial parsePatternDeclsP PatternDecls
-%tokentype { Token }
+%tokentype { Token SrcSpan }
 %error { parseError }
 %monad { Either String }
-%expect 8
+%expect 7
 
 %token
-    id          { TId $$ }
-    char        { TChar $$ }
-    ' '         { TSpaces $$ }
-    '('         { TLParen }
-    ')'         { TRParen }
-    '{{'        { TLBrace2 }
-    '}}'        { TRBrace2 }
-    '['         { TLBracket }
-    ']'         { TRBracket }
-    ':'         { TColon }
-    ','         { TComma }
-    '.'         { TDot }
-    '='         { TEqual }
-    '_'         { TWild }
-    for         { TFor }
-    in          { TIn }
-    if          { TIf }
-    else        { TElse }
-    elseIf      { TElseIf }
-    endIf       { TEndIf }
-    endFor      { TEndFor }
-    '\n'        { TNewline }
+    id          { TId _ $$ }
+    char        { TChar _ $$ }
+    ' '         { TSpaces _ $$ }
+    '('         { TLParen _ }
+    ')'         { TRParen _ }
+    '{{'        { TLBrace2 _ }
+    '}}'        { TRBrace2 _ }
+    '['         { TLBracket _ }
+    ']'         { TRBracket _ }
+    ':'         { TColon _ }
+    ','         { TComma _ }
+    '.'         { TDot _ }
+    '='         { TEqual _ }
+    '_'         { TWild _ }
+    for         { TFor _ }
+    in          { TIn _ }
+    if          { TIf _ }
+    else        { TElse _ }
+    elseIf      { TElseIf _ }
+    endIf       { TEndIf _ }
+    endFor      { TEndFor _ }
+    '\n'        { TNewline _ }
 
 %%
 
@@ -50,10 +50,14 @@ Template :: { [Stmt] }
         : List(Stmt)                                                { $1 }
 
 PatternDecls :: { [PatternDecl] }
-             : ListSepBy(PatternDecl, '\n') Newlines                { $1 }
+             : List1SepBy(PatternDeclS, '\n')                       { catMaybes $1 }
 
-PatternDecl :: { PatternDecl }
-            : Spaces TokenR(id) ':' PatternTypeS                    { PatternDecl $2 $4 }
+PatternDeclS :: { Maybe PatternDecl }
+            : Spaces PatternDecl                                    { $2 }
+
+PatternDecl :: { Maybe PatternDecl }
+            : TokenR(id) ':' PatternTypeS                           { Just (PatternDecl $1 $3) }
+            | Empty                                                 { Nothing }
 
 PatternTypeS :: { PatternType }
              : Spaces PatternType Spaces                            { $2 }
@@ -185,7 +189,7 @@ namedType "Number" = NumberType
 namedType "Bool"   = BoolType
 namedType name     = error $ show name
 
-parseError :: [Token] -> Either String a
+parseError :: [Token SrcSpan] -> Either String a
 parseError []    = Left $ "Parse error at end of input"
 parseError xs    = Left $ "Parse error on " <> showTokens xs <> show xs
 

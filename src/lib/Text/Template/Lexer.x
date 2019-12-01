@@ -1,5 +1,13 @@
 {
-module Text.Template.Lexer (lexer, Token(..), showTokens) where
+module Text.Template.Lexer
+    ( lexer
+    , Token(..)
+    , showTokens
+    , SrcPos(..)
+    , SrcSpan(..)
+    , showSrcPos
+    , showSrcSpan
+    ) where
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BL
@@ -8,7 +16,7 @@ import qualified Data.ByteString.Lazy as BL
 -- additional imports after this block
 }
 
-%wrapper "basic-bytestring"
+%wrapper "posn-bytestring"
 
 ----------------------------------------------
 -- Define some macros for commonly used things
@@ -50,25 +58,25 @@ $idchar  = [$small $large $digit \']
 
 tokens :-
     -- we need all special names first, so the lexer matches them as tokens instead of names/symbols
-    <0> "("                               { const TLParen }
-    <0> ")"                               { const TRParen }
-    <0> ":"                               { const TColon }
-    <0> ","                               { const TComma }
-    <0> "="                               { const TEqual }
-    <0> "."                               { const TDot }
-    <0> "{{"                              { const TLBrace2 }
-    <0> "}}"                              { const TRBrace2 }
-    <0> "["                               { const TLBracket }
-    <0> "]"                               { const TRBracket }
-    <0> "_"                               { const TWild }
-    <0> "{{" $space* "for"                { const TFor }
-    <0> "in"                              { const TIn }
-    <0> "{{" $space* "if"                 { const TIf }
-    <0> "{{" $space* "else" $space* "}}"  { const TElse }
-    <0> "{{" $space* "else" @spaces "if"  { const TElseIf }
-    <0> "{{" @endIf "}}"                  { const TEndIf }
-    <0> "{{" @endFor "}}"                 { const TEndFor }
-    <0> $nl                               { const TNewline }
+    <0> "("                               { simpleToken TLParen }
+    <0> ")"                               { simpleToken TRParen }
+    <0> ":"                               { simpleToken TColon }
+    <0> ","                               { simpleToken TComma }
+    <0> "="                               { simpleToken TEqual }
+    <0> "."                               { simpleToken TDot }
+    <0> "{{"                              { simpleToken TLBrace2 }
+    <0> "}}"                              { simpleToken TRBrace2 }
+    <0> "["                               { simpleToken TLBracket }
+    <0> "]"                               { simpleToken TRBracket }
+    <0> "_"                               { simpleToken TWild }
+    <0> "{{" $space* "for"                { simpleToken TFor }
+    <0> "in"                              { simpleToken TIn }
+    <0> "{{" $space* "if"                 { simpleToken TIf }
+    <0> "{{" $space* "else" $space* "}}"  { simpleToken TElse }
+    <0> "{{" $space* "else" @spaces "if"  { simpleToken TElseIf }
+    <0> "{{" @endIf "}}"                  { simpleToken TEndIf }
+    <0> "{{" @endFor "}}"                 { simpleToken TEndFor }
+    <0> $nl                               { simpleToken TNewline }
     <0> @spaces                           { TSpaces }
     <0> @id                               { TId }
     <0> @other                            { TChar }
@@ -81,73 +89,89 @@ tokens :-
 ----------------------------------------------------------------------------
 
 -- | Run the lexer on the given input string.
-lexer :: ByteString -> Either String [Token]
-lexer str = go (AlexInput '\n' str 0)
+lexer :: ByteString -> Either String [Token SrcSpan]
+lexer bs = go (alexStartPos, '\n', bs, 0)
     where
-        go input = case alexScan input 0 of
-            AlexEOF                  -> pure []
-            AlexError input'         -> Left $ "parse error at offset " <> show (alexBytePos input')
-            AlexSkip input' _        -> go input'
-            AlexToken input' _ token -> do
+        go :: AlexInput -> Either String [Token SrcSpan]
+        go input@(pos, _, str, n) = case alexScan input 0 of
+            AlexEOF                   -> pure []
+            AlexError (pos', _, _, _) -> Left $ "lexical error at " <> showSrcPos (mkSrcPos pos') ""
+            AlexSkip input' _         -> go input'
+            AlexToken input'@(pos', _, _, n') _ token -> do
                 xs <- go input'
-                let len = alexBytePos input' - alexBytePos input
-                pure $ token (BL.take len (alexStr input)) : xs
+                let len = n' - n
+                pure $ token (SrcSpan (mkSrcPos pos) (mkSrcPos pos')) (BL.take len str) : xs
 
 ---------------
 -- * Data types
 ---------------
 
--- | Token type passed on to the parser.
-data Token = TId !ByteString     -- ^ An identifier for a variable
-           | TChar !ByteString   -- ^ An unrecognized character
-           | TSpaces !ByteString -- ^ Space characters
-           | TLParen             -- ^ '('
-           | TRParen             -- ^ ')'
-           | TColon              -- ^ ':'
-           | TComma              -- ^ ','
-           | TEqual              -- ^ '='
-           | TDot                -- ^ '.'
-           | TLBrace2            -- ^ '{{'
-           | TRBrace2            -- ^ '}}'
-           | TLBracket           -- ^ '['
-           | TRBracket           -- ^ ']'
-           | TWild               -- ^ '_'
-           | TFor                -- ^ "{{ for"
-           | TIn                 -- ^ "in"
-           | TIf                 -- ^ "{{ if"
-           | TElse               -- ^ "{{ else }}"
-           | TElseIf             -- ^ "{{ else if"
-           | TEndIf              -- ^ "{{ end if }}"
-           | TEndFor             -- ^ "{{ end for }}"
-           | TNewline            -- ^ "\n"
-           deriving Show
+data SrcPos = SrcPos { posLine :: !Int, posColumn :: !Int } deriving Show
+data SrcSpan = SrcSpan { spanStart :: !SrcPos, spanEnd :: !SrcPos } deriving Show
 
-showTokens :: [Token] -> String
+mkSrcPos :: AlexPosn -> SrcPos
+mkSrcPos (AlexPn _ l c) = SrcPos l c
+
+showSrcPos :: SrcPos -> ShowS
+showSrcPos (SrcPos l c) s = shows l $ ':' : shows c s
+
+showSrcSpan :: SrcSpan -> String
+showSrcSpan (SrcSpan start end) = showSrcPos start $ ' ' : '-' : ' ' : showSrcPos end ""
+
+simpleToken :: (a -> b) -> a -> c -> b
+simpleToken t p _ = t p
+
+-- | Token type passed on to the parser.
+data Token l = TId !l !ByteString     -- ^ An identifier for a variable
+             | TChar !l !ByteString   -- ^ An unrecognized character
+             | TSpaces !l !ByteString -- ^ Space characters
+             | TLParen !l             -- ^ '('
+             | TRParen !l             -- ^ ')'
+             | TColon !l              -- ^ ':'
+             | TComma !l              -- ^ ','
+             | TEqual !l              -- ^ '='
+             | TDot !l                -- ^ '.'
+             | TLBrace2 !l            -- ^ '{{'
+             | TRBrace2 !l            -- ^ '}}'
+             | TLBracket !l           -- ^ '['
+             | TRBracket !l           -- ^ ']'
+             | TWild !l               -- ^ '_'
+             | TFor !l                -- ^ "{{ for"
+             | TIn !l                 -- ^ "in"
+             | TIf !l                 -- ^ "{{ if"
+             | TElse !l               -- ^ "{{ else }}"
+             | TElseIf !l             -- ^ "{{ else if"
+             | TEndIf !l              -- ^ "{{ end if }}"
+             | TEndFor !l             -- ^ "{{ end for }}"
+             | TNewline !l            -- ^ "\n"
+             deriving Show
+
+showTokens :: [Token t] -> String
 showTokens = show . mconcat . map tokenContent
 
-tokenContent :: Token -> ByteString
+tokenContent :: Token t -> ByteString
 tokenContent t = case t of
-    TId s               -> s
-    TChar s             -> s
-    TSpaces s           -> s
-    TLParen             -> fromString "("
-    TRParen             -> fromString ")"
-    TColon              -> fromString ":"
-    TComma              -> fromString ","
-    TEqual              -> fromString "="
-    TDot                -> fromString "."
-    TLBrace2            -> fromString "{{"
-    TRBrace2            -> fromString "}}"
-    TLBracket           -> fromString "["
-    TRBracket           -> fromString "]"
-    TWild               -> fromString "_"
-    TFor                -> fromString "{{ for"
-    TIn                 -> fromString "in"
-    TIf                 -> fromString "{{ if"
-    TElse               -> fromString "{{ else }}"
-    TElseIf             -> fromString "{{ else if"
-    TEndIf              -> fromString "{{ end if }}"
-    TEndFor             -> fromString "{{ end for }}"
-    TNewline            -> fromString "\n"
+    TId _ s     -> s
+    TChar _ s   -> s
+    TSpaces _ s -> s
+    TLParen _   -> fromString "("
+    TRParen _   -> fromString ")"
+    TColon _    -> fromString ":"
+    TComma _    -> fromString ","
+    TEqual _    -> fromString "="
+    TDot _      -> fromString "."
+    TLBrace2 _  -> fromString "{{"
+    TRBrace2 _  -> fromString "}}"
+    TLBracket _ -> fromString "["
+    TRBracket _ -> fromString "]"
+    TWild _     -> fromString "_"
+    TFor _      -> fromString "{{ for"
+    TIn _       -> fromString "in"
+    TIf _       -> fromString "{{ if"
+    TElse _     -> fromString "{{ else }}"
+    TElseIf _   -> fromString "{{ else if"
+    TEndIf _    -> fromString "{{ end if }}"
+    TEndFor _   -> fromString "{{ end for }}"
+    TNewline _  -> fromString "\n"
 
 }

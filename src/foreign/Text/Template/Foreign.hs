@@ -1,6 +1,6 @@
 module Text.Template.Foreign where
 
-import qualified Text.Template.Main as Main
+import Text.Template.Main (runTemplate)
 
 import Control.Monad
 
@@ -11,15 +11,15 @@ import qualified Data.ByteString.Lazy as BL
 import Foreign
 import Foreign.C
 
-runTemplate :: CString -> CString -> CString -> CString -> CString -> CString -> Ptr CInt -> IO CString
-runTemplate tmplFileP varFileP bsP luaP varP mJsonP resultP = do
+hsRunTemplate :: CString -> CString -> CString -> CString -> CString -> CString -> Ptr CInt -> IO CString
+hsRunTemplate tmplFileP varFileP bsP luaP varP mJsonP resultP = do
     tmplFile <- if tmplFileP /= nullPtr then peekCString tmplFileP else pure "<memory>.tmpl"
     varFile  <- if varFileP /= nullPtr then peekCString varFileP else pure "<memory>.var"
     bs       <- if bsP /= nullPtr then BL.fromStrict <$> BS.unsafePackCString bsP else pure mempty
     lua      <- if luaP /= nullPtr then BS.unsafePackCString luaP else pure mempty
     var      <- if varP /= nullPtr then BL.fromStrict <$> BS.unsafePackCString varP else pure mempty
     mJson    <- if mJsonP /= nullPtr then Just . BL.fromStrict <$> BS.unsafePackCString mJsonP else pure Nothing
-    result   <- Main.runTemplate tmplFile varFile bs lua var mJson
+    result   <- runTemplate tmplFile varFile bs lua var mJson
     case result of
         Left err -> do
             when (resultP /= nullPtr) $ poke resultP (-1)
@@ -36,9 +36,9 @@ runTemplate tmplFileP varFileP bsP luaP varP mJsonP resultP = do
             BS.unsafeUseAsCStringLen x $ \ (xPtr, xLen) -> copyBytes ptr xPtr xLen
             pokeCByteString xs (ptr `plusPtr` BS.length x)
 
-freeTemplate :: CString -> IO ()
-freeTemplate p = when (p /= nullPtr) $ free p
+hsFreeTemplate :: CString -> IO ()
+hsFreeTemplate p = when (p /= nullPtr) $ free p
 
-foreign export ccall runTemplate :: CString -> CString -> CString -> CString -> CString -> CString -> Ptr CInt -> IO CString
+foreign export ccall hsRunTemplate :: CString -> CString -> CString -> CString -> CString -> CString -> Ptr CInt -> IO CString
 
-foreign export ccall freeTemplate :: CString -> IO ()
+foreign export ccall hsFreeTemplate :: CString -> IO ()

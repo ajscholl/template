@@ -6,6 +6,8 @@ import Text.Template.Input.Stdin
 import Text.Template.Interpreter
 import Text.Template.Parser
 
+import Control.Monad.Except
+
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BLC
@@ -28,27 +30,33 @@ execMain args = do
     bs  <- BL.readFile tmplFile
     lua <- BS.readFile luaFile
     var <- BL.readFile varFile
-    case (,) <$> parseTemplate tmplFile bs <*> parsePatternDecls varFile var of
-        Left err -> reportError err
-        Right (xs, pat) -> do
-            vars <- case inputValues args of
-                Nothing -> getInputs pat
-                Just fp -> do
-                    json <- BL.readFile fp
-                    case jsonToInputs json pat of
-                        Left err   -> reportError err
-                        Right vars -> pure vars
-            resultOrErr <- interpret xs lua vars
-            result <- case resultOrErr of
-                Left err -> reportError $ fromInterpreterException err
-                Right rs -> pure rs
-            case outputFile args of
-                Nothing -> BLC.putStrLn result
-                Just fp -> do
-                    exists <- doesFileExist fp
-                    case (exists, overwriteOutput args) of
-                        (True, False) -> reportError $ fp <> " exists and --overwrite was not specified."
-                        _             -> BL.writeFile fp result
+    json <- case inputValues args of
+        Nothing -> pure Nothing
+        Just fp -> Just <$> BL.readFile fp
+    resultOrErr <- runTemplate tmplFile varFile bs lua var json
+    result <- case resultOrErr of
+        Left err     -> reportError err
+        Right result -> pure result
+    case outputFile args of
+        Nothing -> BLC.putStrLn result
+        Just fp -> do
+            exists <- doesFileExist fp
+            case (exists, overwriteOutput args) of
+                (True, False) -> reportError $ fp <> " exists and --overwrite was not specified."
+                _             -> BL.writeFile fp result
+
+runTemplate :: FilePath -> FilePath -> BL.ByteString -> BS.ByteString -> BL.ByteString -> Maybe BL.ByteString -> IO (Either String BL.ByteString)
+runTemplate tmplFile varFile bs lua var mJson = runExceptT $ do
+    stmts <- ExceptT $ pure $ parseTemplate tmplFile bs
+    pat   <- ExceptT $ pure $ parsePatternDecls varFile var
+    vars <- case mJson of
+        Nothing   -> liftIO $ getInputs pat
+        Just json -> ExceptT $ pure $ jsonToInputs json pat
+    ExceptT $ do
+        result <- interpret stmts lua vars
+        pure $ case result of
+            Left err -> Left $ fromInterpreterException err
+            Right rs -> Right rs
 
 reportError :: String -> IO a
 reportError err = do

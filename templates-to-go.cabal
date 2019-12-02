@@ -17,6 +17,7 @@ library
     Text.Template.Main
   other-modules:
     Text.Template.Flags
+    Text.Template.Foreign
     Text.Template.Input.Json
     Text.Template.Input.Stdin
     Text.Template.Interpreter
